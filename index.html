@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My DramaBox</title>
+  <style>
+    body { font-family: Arial; background:#0b0f1a; color:white; margin:0; }
+    header { padding:15px; background:#111827; display:flex; gap:10px; position:sticky; top:0; }
+    input { padding:8px; flex:1; border-radius:6px; border:none; }
+    button { padding:8px 12px; cursor:pointer; border:none; border-radius:6px; background:#2563eb; color:white; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:15px; padding:15px; }
+    .card { cursor:pointer; }
+    .card img { width:100%; border-radius:10px; }
+    .player { padding:15px; }
+    video { width:100%; border-radius:10px; background:black; }
+    .center { text-align:center; padding:40px; opacity:0.7; }
+  </style>
+</head>
+<body>
+
+<header>
+  <input id="search" placeholder="Search drama...">
+  <button onclick="searchDrama()">Search</button>
+  <button onclick="loadHome()">Home</button>
+</header>
+
+<div id="app" class="center">Loading...</div>
+
+<script>
+const BASE = "/api/proxy?path=";
+
+async function fetchAPI(path){
+  try{
+    const res = await fetch(BASE + encodeURIComponent(path));
+    return await res.json();
+  }catch(e){
+    console.error(e);
+    document.getElementById("app").innerHTML = `
+      <div class='center'>
+        ❌ Error load API<br><br>
+        Coba refresh / cek koneksi
+      </div>
+    `;
+  }
+}
+
+async function loadHome() {
+  document.getElementById("app").innerHTML = "<div class='center'>Loading...</div>";
+  const json = await fetchAPI(`foryou/1`);
+  if(json?.data) renderList(json.data);
+}
+
+async function searchDrama() {
+  const q = document.getElementById("search").value;
+  if(!q) return;
+  document.getElementById("app").innerHTML = "<div class='center'>Searching...</div>";
+  const json = await fetchAPI(`search/${q}/1`);
+  if(json?.data) renderList(json.data);
+}
+
+function renderList(list) {
+  const app = document.getElementById("app");
+  if(!list.length){
+    app.innerHTML = "<div class='center'>Tidak ada data</div>";
+    return;
+  }
+  app.innerHTML = `<div class="grid">${list.map(item => `
+    <div class="card" onclick="loadDetail('${item.id}')">
+      <img src="${item.cover}" loading="lazy">
+      <p>${item.title}</p>
+    </div>
+  `).join("")}</div>`;
+}
+
+async function loadDetail(id) {
+  document.getElementById("app").innerHTML = "<div class='center'>Loading episodes...</div>";
+  const json = await fetchAPI(`chapters/${id}`);
+
+  if(!json?.data) return;
+
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <h2 style="padding:15px">Episodes</h2>
+    <div style="padding:15px; display:flex; flex-wrap:wrap; gap:10px;">
+      ${json.data.map((ep,i)=>`
+        <button onclick="watch('${id}',${i})">Ep ${i+1}</button>
+      `).join("")}
+    </div>
+  `;
+}
+
+async function watch(id, ep) {
+  document.getElementById("app").innerHTML = "<div class='center'>Loading video...</div>";
+  const json = await fetchAPI(`watch/${id}/${ep}`);
+
+  if(!json?.data?.url){
+    document.getElementById("app").innerHTML = "<div class='center'>❌ Video tidak tersedia</div>";
+    return;
+  }
+
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <div class="player">
+      <video controls autoplay src="${json.data.url}"></video>
+      <br><br>
+      <button onclick="loadDetail('${id}')">⬅ Back</button>
+    </div>
+  `;
+}
+
+loadHome();
+</script>
+
+</body>
+</html>
