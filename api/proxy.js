@@ -9,8 +9,12 @@ export default async function handler(req, res) {
     const url = `https://dramabox.sansekai.my.id/api/${path}`;
 
     const response = await fetch(url, {
+      method: "GET",
       headers: {
-        "User-Agent": "Mozilla/5.0"
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json",
+        "Referer": "https://dramabox.sansekai.my.id/",
+        "Origin": "https://dramabox.sansekai.my.id"
       }
     });
 
@@ -19,13 +23,20 @@ export default async function handler(req, res) {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Cache-Control", "s-maxage=60");
 
-    try {
-      return res.status(200).json(JSON.parse(text));
-    } catch {
-      return res.status(200).send(text);
+    // 🔥 DEBUG
+    if (!text || text.startsWith("<")) {
+      return res.status(500).json({
+        error: "API BLOCKED / INVALID RESPONSE",
+        raw: text.slice(0, 200)
+      });
     }
 
+    return res.status(200).json(JSON.parse(text));
+
   } catch (err) {
-    return res.status(500).json({ error: "Proxy error" });
+    return res.status(500).json({
+      error: "Proxy error",
+      message: err.message
+    });
   }
 }
